@@ -17,6 +17,8 @@ data "aws_iam_openid_connect_provider" "github" {
 }
 
 locals {
+  gh_owner        = split("/", var.github_repository)[0]
+  gh_repo         = split("/", var.github_repository)[1]
   github_oidc_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
 }
 
@@ -32,13 +34,17 @@ data "aws_iam_policy_document" "github_assume" {
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
-    # Only YOUR repository can deploy: main-branch jobs, or jobs in the "production" environment
+    # Only YOUR repository can deploy: main-branch jobs, or jobs in the "production" environment.
+    # GitHub now puts immutable IDs in the subject ("repo:owner@123/name@456:..."), so both
+    # the new form and the classic "repo:owner/name:..." form are accepted.
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
       values = [
-        "repo:${var.github_repository}:ref:refs/heads/main",
-        "repo:${var.github_repository}:environment:production",
+        "repo:${local.gh_owner}/${local.gh_repo}:ref:refs/heads/main",
+        "repo:${local.gh_owner}/${local.gh_repo}:environment:production",
+        "repo:${local.gh_owner}@*/${local.gh_repo}@*:ref:refs/heads/main",
+        "repo:${local.gh_owner}@*/${local.gh_repo}@*:environment:production",
       ]
     }
   }
