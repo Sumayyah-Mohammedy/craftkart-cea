@@ -1,0 +1,193 @@
+# =====================================================================
+# CraftKart CI/CD
+#   every push / PR : test backend (against real PostgreSQL) + frontend, build both images
+#   push to main    : push images to Amazon ECR, rolling-deploy app tier then web tier,
+#                     smoke-test the live site through the public load balancer
+# AWS access uses GitHub OIDC -> short-lived role credentials (no stored access keys).
+# =====================================================================
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  # ------------------------------------------------------------------
+  test-backend:
+    name: Test API (Node + PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: craftkart
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: craftkart_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U craftkart"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Integration tests
+        run: npm test
+        env:
+          DATABASE_URL: postgres://craftkart:ci-only-password@localhost:5432/craftkart_test
+          JWT_SECRET: ci-test-secret
+
+  test-frontend:
+    name: Test web (React)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test -- --watchAll=false
+
+  # ------------------------------------------------------------------
+  build:
+    name: Build${{ github.event_name == 'push' && ' & push' || '' }} images
+    needs: [test-backend, test-frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for OIDC
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      # PR builds are only a check (no registry); main builds are tagged for ECR
+      - name: Compute image names
+        id: img
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] || [ -z "${{ vars.ECR_REGISTRY }}" ]; then
+            echo "backend=craftkart-backend"   >> "$GITHUB_OUTPUT"
+            echo "frontend=craftkart-frontend" >> "$GITHUB_OUTPUT"
+          else
+            echo "backend=${{ vars.ECR_REGISTRY }}/${{ vars.ECR_REPO_BACKEND }}"   >> "$GITHUB_OUTPUT"
+            echo "frontend=${{ vars.ECR_REGISTRY }}/${{ vars.ECR_REPO_FRONTEND }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Configure AWS credentials (OIDC)
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: ${{ github.event_name != 'pull_request' }}
+          build-args: APP_VERSION=${{ env.IMAGE_TAG }}
+          tags: |
+            ${{ steps.img.outputs.backend }}:${{ env.IMAGE_TAG }}
+            ${{ steps.img.outputs.backend }}:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build & push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          push: ${{ github.event_name != 'pull_request' }}
+          build-args: |
+            REACT_APP_API_URL=/api
+            REACT_APP_SUPABASE_URL=${{ vars.REACT_APP_SUPABASE_URL }}
+            REACT_APP_SUPABASE_ANON_KEY=${{ secrets.REACT_APP_SUPABASE_ANON_KEY }}
+            REACT_APP_BUCKET_NAME=${{ vars.REACT_APP_BUCKET_NAME || 'craftkart' }}
+            REACT_APP_DOCS_BUCKET=${{ vars.REACT_APP_DOCS_BUCKET || 'seller-documents' }}
+          tags: |
+            ${{ steps.img.outputs.frontend }}:${{ env.IMAGE_TAG }}
+            ${{ steps.img.outputs.frontend }}:latest
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: List pushed images
+        if: github.event_name != 'pull_request'
+        run: |
+          for repo in ${{ vars.ECR_REPO_BACKEND }} ${{ vars.ECR_REPO_FRONTEND }}; do
+            aws ecr describe-images --repository-name "$repo" \
+              --query 'reverse(sort_by(imageDetails,&imagePushedAt))[:3].[imageTags[0],imagePushedAt,imageSizeInBytes]' \
+              --output table
+          done
+
+  # ------------------------------------------------------------------
+  deploy:
+    name: Deploy to AWS
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.APP_URL }}
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # API first (new API must be up before new UI that may call it)
+      - name: Rolling deploy - application tier
+        run: ./scripts/rolling-deploy.sh "${{ vars.ASG_APP }}" "${{ vars.SSM_TAG_BACKEND }}" "$IMAGE_TAG"
+
+      - name: Rolling deploy - web tier
+        run: ./scripts/rolling-deploy.sh "${{ vars.ASG_WEB }}" "${{ vars.SSM_TAG_FRONTEND }}" "$IMAGE_TAG"
+
+      - name: Smoke test through the public load balancer
+        run: |
+          set -e
+          URL="${{ vars.APP_URL }}"
+          for i in $(seq 1 20); do
+            curl -fsS "$URL/healthz" && break || sleep 10
+          done
+          echo "--- web tier";  curl -fsS -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" "$URL/"
+          echo "--- app tier";  curl -fsS "$URL/api/health" | tee health.json; echo
+          echo "--- database";  curl -fsS "$URL/api/health/ready"; echo
+          echo "--- products";  curl -fsS "$URL/api/products?limit=1" | head -c 300; echo
+          grep -q "$IMAGE_TAG" health.json && echo "Deployed version $IMAGE_TAG is live"

@@ -1,0 +1,33 @@
+#!/bin/bash
+# =========================================================
+# WEB TIER bootstrap (rendered by Terraform, runs once at first boot)
+# =========================================================
+set -euo pipefail
+exec > >(tee /var/log/craftkart-bootstrap.log) 2>&1
+
+dnf install -y docker
+systemctl enable --now docker
+
+TOKEN=$(curl -sX PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+
+TAG=$(aws ssm get-parameter --region ${region} --name "${tag_param}" --query Parameter.Value --output text)
+IMAGE="${image_repo}:$TAG"
+
+until aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${registry} \
+      && docker pull "$IMAGE"; do
+  echo "image $IMAGE not available yet - retrying in 20s"; sleep 20
+done
+
+# BACKEND_URL = internal ALB of the app tier; 169.254.169.253 = Amazon VPC DNS resolver
+docker run -d --name craftkart-frontend --restart always \
+  -p 80:80 \
+  -e BACKEND_URL=${backend_url} \
+  -e NGINX_RESOLVER=169.254.169.253 \
+  --log-driver awslogs \
+  --log-opt awslogs-region=${region} \
+  --log-opt awslogs-group=${log_group} \
+  --log-opt awslogs-stream="$INSTANCE_ID" \
+  "$IMAGE"
+
+echo "bootstrap complete: $IMAGE"

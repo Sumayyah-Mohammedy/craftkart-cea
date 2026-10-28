@@ -1,0 +1,79 @@
+# =========================================================
+# Local three-tier stack:  browser -> web (nginx+React) -> api (Node) -> db (PostgreSQL)
+#   cp .env.example .env    # then edit values
+#   docker compose up --build
+#   open http://localhost:8080
+# Only the web tier publishes a port; api and db live on private Docker networks,
+# mirroring the public/private subnet split used in AWS.
+# =========================================================
+name: craftkart
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-craftkart}
+      POSTGRES_USER: ${DB_USER:-craftkart}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - pg-data:/var/lib/postgresql/data      # persistent volume
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    image: craftkart-backend:local
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "5000"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-craftkart}
+      DB_USER: ${DB_USER:-craftkart}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_SSL: "false"
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      JWT_EXPIRE: 24h
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@craftkart.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@123456}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [app, data]           # can reach db; not reachable from the host
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        REACT_APP_API_URL: /api
+        REACT_APP_SUPABASE_URL: ${REACT_APP_SUPABASE_URL:-}
+        REACT_APP_SUPABASE_ANON_KEY: ${REACT_APP_SUPABASE_ANON_KEY:-}
+        REACT_APP_BUCKET_NAME: ${REACT_APP_BUCKET_NAME:-craftkart}
+        REACT_APP_DOCS_BUCKET: ${REACT_APP_DOCS_BUCKET:-seller-documents}
+    image: craftkart-frontend:local
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:5000
+      NGINX_RESOLVER: 127.0.0.11      # Docker's embedded DNS
+    ports:
+      - "8081:80"                     # the ONLY published port
+    depends_on:
+      - backend
+    networks: [app]                   # cannot reach the db network
+
+networks:
+  app:
+  data:
+    internal: true                    # no outbound internet for the database network
+
+volumes:
+  pg-data:

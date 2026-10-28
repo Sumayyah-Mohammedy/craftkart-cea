@@ -1,0 +1,16 @@
+# secrets - never commit
+.env
+**/.env
+*.tfvars
+!*.tfvars.example
+# terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl.bak
+# node
+node_modules/
+build/
+coverage/
+npm-debug.log*
+.DS_Store

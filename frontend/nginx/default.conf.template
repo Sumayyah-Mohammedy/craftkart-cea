@@ -1,0 +1,62 @@
+# Rendered at container start: ${BACKEND_URL} and ${NGINX_RESOLVER} come from env.
+server {
+  listen 80;
+  server_name _;
+  root /usr/share/nginx/html;
+  index index.html;
+  server_tokens off;
+
+  # Re-resolve the backend name every 30s (AWS internal ALB IPs change over time)
+  resolver ${NGINX_RESOLVER} valid=30s ipv6=off;
+  set $backend_upstream ${BACKEND_URL};
+
+  # Security headers (nginx does not inherit add_header into locations that set
+  # their own headers, so they are repeated where needed)
+  add_header X-Frame-Options "SAMEORIGIN" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+  gzip on;
+  gzip_types text/plain text/css application/json application/javascript image/svg+xml;
+  gzip_min_length 1024;
+
+  client_max_body_size 10m;
+
+  # Health check for the public load balancer's web target group
+  location = /healthz {
+    access_log off;
+    default_type text/plain;
+    return 200 "ok\n";
+  }
+
+  # Reverse proxy: Web Tier -> Application Tier
+  location /api/ {
+    proxy_pass $backend_upstream;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 5s;
+    proxy_read_timeout 30s;
+  }
+
+  # Hashed build assets can be cached "forever"
+  location /static/ {
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    try_files $uri =404;
+  }
+
+  # SPA routing: unknown paths fall back to index.html (never cached)
+  location / {
+    add_header Cache-Control "no-cache";
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    try_files $uri /index.html;
+  }
+}

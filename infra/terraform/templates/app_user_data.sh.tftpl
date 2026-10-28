@@ -1,0 +1,51 @@
+#!/bin/bash
+# =========================================================
+# APP TIER bootstrap (rendered by Terraform, runs once at first boot)
+# =========================================================
+set -euo pipefail
+exec > >(tee /var/log/craftkart-bootstrap.log) 2>&1
+
+dnf install -y docker jq
+systemctl enable --now docker
+
+TOKEN=$(curl -sX PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+INSTANCE_ID=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+
+# Which version to run is decided by the CI/CD pipeline (SSM Parameter Store)
+TAG=$(aws ssm get-parameter --region ${region} --name "${tag_param}" --query Parameter.Value --output text)
+IMAGE="${image_repo}:$TAG"
+
+# Secrets are fetched at boot with the instance's IAM role -> never stored in the image or in Git
+umask 077
+mkdir -p /etc/craftkart
+aws secretsmanager get-secret-value --region ${region} --secret-id "${secret_id}" \
+  --query SecretString --output text | jq -r 'to_entries[] | "\(.key)=\(.value)"' > /etc/craftkart/app.env
+cat >> /etc/craftkart/app.env <<ENV
+NODE_ENV=production
+PORT=5000
+DB_SSL=true
+FRONTEND_URL=${frontend_url}
+INSTANCE_ID=$INSTANCE_ID
+ENV
+
+# Pull the image (retry until CI/CD has pushed the first version)
+until aws ecr get-login-password --region ${region} | docker login --username AWS --password-stdin ${registry} \
+      && docker pull "$IMAGE"; do
+  echo "image $IMAGE not available yet - retrying in 20s"; sleep 20
+done
+
+# One-off: create schema + demo data (the seed script is a no-op if data already exists)
+${seed_demo_data ? "" : "# "}docker run --rm --env-file /etc/craftkart/app.env "$IMAGE" node scripts/seedData.js || true
+
+docker run -d --name craftkart-backend --restart always \
+  -p 5000:5000 \
+  --env-file /etc/craftkart/app.env \
+  --log-driver awslogs \
+  --log-opt awslogs-region=${region} \
+  --log-opt awslogs-group=${log_group} \
+  --log-opt awslogs-stream="$INSTANCE_ID" \
+  "$IMAGE"
+
+# The env file is no longer needed once the container exists
+shred -u /etc/craftkart/app.env
+echo "bootstrap complete: $IMAGE"

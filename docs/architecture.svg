@@ -1,0 +1,229 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1720" height="1200" viewBox="0 0 1720 1200" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1f2937"/>
+    </marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/>
+    </marker>
+    <marker id="ap" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/>
+    </marker>
+    <style>
+      .t{font-size:14px;fill:#111827}
+      .s{font-size:12px;fill:#374151}
+      .xs{font-size:11px;fill:#4b5563}
+      .h{font-size:15px;font-weight:700;fill:#111827}
+      .lbl{font-size:12px;font-weight:700}
+      .box{fill:#fff;stroke:#374151;stroke-width:1.4;rx:8}
+      .ln{stroke:#1f2937;stroke-width:1.8;fill:none;marker-end:url(#a)}
+      .lg{stroke:#6b7280;stroke-width:1.5;fill:none;stroke-dasharray:6 4;marker-end:url(#ag)}
+      .lp{stroke:#7c3aed;stroke-width:1.8;fill:none;marker-end:url(#ap)}
+    </style>
+  </defs>
+
+  <rect width="1720" height="1200" fill="#ffffff"/>
+  <text x="40" y="44" font-size="24" font-weight="700" fill="#111827">CraftKart – Three-Tier Architecture on AWS</text>
+  <text x="40" y="68" class="s">Web tier (Nginx + React) → Application tier (Node.js/Express API) → Database tier (Amazon RDS PostgreSQL), provisioned with Terraform, deployed by GitHub Actions</text>
+
+  <!-- Users -->
+  <rect x="40" y="420" width="140" height="80" class="box"/>
+  <text x="110" y="452" text-anchor="middle" class="h">Users</text>
+  <text x="110" y="472" text-anchor="middle" class="s">Web browser</text>
+  <text x="110" y="488" text-anchor="middle" class="xs">buyer / seller / admin</text>
+
+  <!-- AWS region -->
+  <rect x="215" y="90" width="1085" height="1060" fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="10 6" rx="10"/>
+  <text x="232" y="114" font-size="15" font-weight="700" fill="#b45309">AWS Cloud · Region ap-south-1 (Mumbai)</text>
+
+  <!-- VPC -->
+  <rect x="245" y="130" width="800" height="1000" fill="#faf5ff" stroke="#7c3aed" stroke-width="2" rx="10"/>
+  <text x="262" y="154" font-size="15" font-weight="700" fill="#6d28d9">VPC 10.0.0.0/16</text>
+
+  <!-- IGW -->
+  <rect x="262" y="168" width="170" height="40" rx="8" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.4"/>
+  <text x="347" y="193" text-anchor="middle" class="t">Internet Gateway</text>
+
+  <!-- AZ columns -->
+  <rect x="280" y="222" width="360" height="890" fill="none" stroke="#9ca3af" stroke-width="1.4" stroke-dasharray="5 5" rx="8"/>
+  <text x="460" y="240" text-anchor="middle" class="lbl" fill="#4b5563">Availability Zone A</text>
+  <rect x="660" y="222" width="360" height="890" fill="none" stroke="#9ca3af" stroke-width="1.4" stroke-dasharray="5 5" rx="8"/>
+  <text x="840" y="240" text-anchor="middle" class="lbl" fill="#4b5563">Availability Zone B</text>
+
+  <!-- PUBLIC band -->
+  <rect x="290" y="252" width="340" height="168" fill="#dcfce7" stroke="#16a34a" rx="6"/>
+  <rect x="670" y="252" width="340" height="168" fill="#dcfce7" stroke="#16a34a" rx="6"/>
+  <text x="362" y="270" class="lbl" fill="#15803d">Public subnet 10.0.1.0/24</text>
+  <text x="680" y="270" class="lbl" fill="#15803d">Public subnet 10.0.2.0/24</text>
+  <rect x="320" y="284" width="660" height="54" rx="8" fill="#fff" stroke="#16a34a" stroke-width="1.6"/>
+  <text x="650" y="306" text-anchor="middle" class="h">Public Application Load Balancer</text>
+  <text x="650" y="326" text-anchor="middle" class="xs">Listener :80 (→ :443 when an ACM cert is set) · Target group tg-web · health /healthz · access logs → S3</text>
+  <rect x="320" y="354" width="160" height="50" rx="8" fill="#fff" stroke="#16a34a" stroke-width="1.4"/>
+  <text x="400" y="376" text-anchor="middle" class="t">NAT Gateway</text>
+  <text x="400" y="393" text-anchor="middle" class="xs">outbound for web/app subnets</text>
+  <text x="690" y="383" class="xs" fill="#15803d">sg-alb-public: 80/443 from 0.0.0.0/0</text>
+
+  <!-- WEB band -->
+  <rect x="290" y="440" width="340" height="160" fill="#dbeafe" stroke="#2563eb" rx="6"/>
+  <rect x="670" y="440" width="340" height="160" fill="#dbeafe" stroke="#2563eb" rx="6"/>
+  <text x="300" y="458" class="lbl" fill="#1d4ed8">Private web subnet 10.0.11.0/24</text>
+  <text x="680" y="458" class="lbl" fill="#1d4ed8">Private web subnet 10.0.12.0/24</text>
+  <rect x="310" y="470" width="690" height="112" rx="10" fill="none" stroke="#2563eb" stroke-width="1.4" stroke-dasharray="7 4"/>
+  <rect x="592" y="476" width="136" height="98" rx="6" fill="#ffffff" fill-opacity="0.92"/><g class="xs" fill="#1d4ed8" text-anchor="middle"><text x="660" y="490" font-weight="700">ASG "web"</text><text x="660" y="505">min 1 · des 2 · max 4</text><text x="660" y="520">CPU 50 % &amp;</text><text x="660" y="535">1000 req/target</text><text x="660" y="552">sg-web: 80 from</text><text x="660" y="566">sg-alb-public only</text></g>
+  <rect x="360" y="482" width="220" height="68" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1.4"/>
+  <text x="470" y="504" text-anchor="middle" class="t">EC2 t3.micro · Docker</text>
+  <text x="470" y="522" text-anchor="middle" class="s">craftkart-frontend container</text>
+  <text x="470" y="539" text-anchor="middle" class="xs">Nginx: React SPA + /api reverse proxy</text>
+  <rect x="740" y="482" width="220" height="68" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1.4"/>
+  <text x="850" y="504" text-anchor="middle" class="t">EC2 t3.micro · Docker</text>
+  <text x="850" y="522" text-anchor="middle" class="s">craftkart-frontend container</text>
+  <text x="850" y="539" text-anchor="middle" class="xs">Nginx: React SPA + /api reverse proxy</text>
+
+  <!-- APP band -->
+  <rect x="290" y="620" width="340" height="236" fill="#fef3c7" stroke="#d97706" rx="6"/>
+  <rect x="670" y="620" width="340" height="236" fill="#fef3c7" stroke="#d97706" rx="6"/>
+  <text x="300" y="638" class="lbl" fill="#b45309">Private app subnet 10.0.21.0/24</text>
+  <text x="680" y="638" class="lbl" fill="#b45309">Private app subnet 10.0.22.0/24</text>
+  <rect x="320" y="650" width="660" height="50" rx="8" fill="#fff" stroke="#d97706" stroke-width="1.6"/>
+  <text x="650" y="671" text-anchor="middle" class="h">Internal Application Load Balancer</text>
+  <text x="650" y="689" text-anchor="middle" class="xs">not internet-facing · sg-alb-internal: 80 from sg-web only · target group tg-app :5000 · health /api/health</text>
+  <rect x="310" y="714" width="690" height="126" rx="10" fill="none" stroke="#d97706" stroke-width="1.4" stroke-dasharray="7 4"/>
+  <rect x="360" y="726" width="220" height="72" rx="8" fill="#fff" stroke="#d97706" stroke-width="1.4"/>
+  <text x="470" y="748" text-anchor="middle" class="t">EC2 t3.micro · Docker</text>
+  <text x="470" y="766" text-anchor="middle" class="s">craftkart-backend container</text>
+  <text x="470" y="783" text-anchor="middle" class="xs">Node.js 20 / Express API :5000</text>
+  <rect x="740" y="726" width="220" height="72" rx="8" fill="#fff" stroke="#d97706" stroke-width="1.4"/>
+  <text x="850" y="748" text-anchor="middle" class="t">EC2 t3.micro · Docker</text>
+  <text x="850" y="766" text-anchor="middle" class="s">craftkart-backend container</text>
+  <text x="850" y="783" text-anchor="middle" class="xs">Node.js 20 / Express API :5000</text>
+  <rect x="592" y="722" width="136" height="84" rx="6" fill="#ffffff" fill-opacity="0.92"/><g class="xs" fill="#b45309" text-anchor="middle"><text x="660" y="736" font-weight="700">ASG "app"</text><text x="660" y="751">min 1 · des 2 · max 4</text><text x="660" y="766">CPU 50 % target</text><text x="660" y="783">sg-app: 5000 from</text><text x="660" y="797">sg-alb-internal only</text></g>
+
+  <!-- DB band -->
+  <rect x="290" y="876" width="340" height="170" fill="#fee2e2" stroke="#dc2626" rx="6"/>
+  <rect x="670" y="876" width="340" height="170" fill="#fee2e2" stroke="#dc2626" rx="6"/>
+  <text x="300" y="894" class="lbl" fill="#b91c1c">Private DB subnet 10.0.31.0/24</text>
+  <text x="680" y="894" class="lbl" fill="#b91c1c">Private DB subnet 10.0.32.0/24</text>
+  <rect x="350" y="910" width="240" height="84" rx="8" fill="#fff" stroke="#dc2626" stroke-width="1.6"/>
+  <text x="470" y="934" text-anchor="middle" class="h">Amazon RDS PostgreSQL 16</text>
+  <text x="470" y="953" text-anchor="middle" class="s">db.t3.micro · primary</text>
+  <text x="470" y="970" text-anchor="middle" class="xs">encrypted at rest · rds.force_ssl=1</text>
+  <text x="470" y="985" text-anchor="middle" class="xs">automated backups · not publicly accessible</text>
+  <rect x="730" y="910" width="240" height="84" rx="8" fill="#fff" stroke="#dc2626" stroke-width="1.4" stroke-dasharray="6 4"/>
+  <text x="850" y="938" text-anchor="middle" class="t">Standby replica (optional)</text>
+  <text x="850" y="958" text-anchor="middle" class="xs">db_multi_az = true → synchronous</text>
+  <text x="850" y="974" text-anchor="middle" class="xs">replication + automatic failover</text>
+  <text x="300" y="1030" class="xs" fill="#b91c1c">sg-db: 5432 from sg-app only · NACL: 5432 from app subnets · no internet route</text>
+
+  <!-- Legend inside VPC bottom -->
+  <text x="300" y="1078" class="xs">Route tables: public → IGW · private web/app → NAT gateway · db → local only.  Access to instances: SSM Session Manager (no SSH, no bastion, port 22 closed).</text>
+  <text x="300" y="1096" class="xs">IAM instance roles: web = pull own image + read own tag + write logs; app = same + read the app secret.  IMDSv2 enforced, EBS encrypted.</text>
+
+  <!-- Regional services -->
+  <text x="1065" y="138" class="lbl" fill="#b45309">Regional AWS services</text>
+  <rect x="1065" y="172" width="215" height="70" class="box"/>
+  <text x="1172" y="198" text-anchor="middle" class="h">Amazon ECR</text>
+  <text x="1172" y="216" text-anchor="middle" class="xs">craftkart-frontend · craftkart-backend</text>
+  <text x="1172" y="231" text-anchor="middle" class="xs">scan on push · keep last 10</text>
+
+  <rect x="1065" y="262" width="215" height="70" class="box"/>
+  <text x="1172" y="288" text-anchor="middle" class="h">Secrets Manager</text>
+  <text x="1172" y="306" text-anchor="middle" class="xs">DB password, JWT secret,</text>
+  <text x="1172" y="321" text-anchor="middle" class="xs">Stripe key (read by app role only)</text>
+
+  <rect x="1065" y="352" width="215" height="62" class="box"/>
+  <text x="1172" y="378" text-anchor="middle" class="h">SSM Parameter Store</text>
+  <text x="1172" y="398" text-anchor="middle" class="xs">image tag per tier (set by CI/CD)</text>
+
+  <rect x="1065" y="434" width="215" height="84" class="box"/>
+  <text x="1172" y="460" text-anchor="middle" class="h">Amazon CloudWatch</text>
+  <text x="1172" y="478" text-anchor="middle" class="xs">Logs: /craftkart/prod/web|app + RDS</text>
+  <text x="1172" y="493" text-anchor="middle" class="xs">Metrics, dashboard, alarms</text>
+  <text x="1172" y="508" text-anchor="middle" class="xs">→ SNS e-mail</text>
+
+  <rect x="1065" y="538" width="215" height="62" class="box"/>
+  <text x="1172" y="564" text-anchor="middle" class="h">Amazon S3</text>
+  <text x="1172" y="584" text-anchor="middle" class="xs">ALB access logs (encrypted, lifecycle)</text>
+
+  <rect x="1065" y="620" width="215" height="62" class="box"/>
+  <text x="1172" y="646" text-anchor="middle" class="h">AWS IAM</text>
+  <text x="1172" y="666" text-anchor="middle" class="xs">least-privilege roles + GitHub OIDC</text>
+
+  <!-- CI/CD -->
+  <rect x="1330" y="150" width="360" height="560" fill="#f9fafb" stroke="#111827" stroke-width="1.6" rx="10"/>
+  <text x="1350" y="176" class="h">CI/CD – GitHub</text>
+  <rect x="1350" y="192" width="320" height="56" class="box"/>
+  <text x="1510" y="216" text-anchor="middle" class="t">GitHub repository (main)</text>
+  <text x="1510" y="235" text-anchor="middle" class="xs">backend/ frontend/ infra/terraform .github/workflows</text>
+  <rect x="1350" y="276" width="320" height="410" class="box"/>
+  <text x="1510" y="300" text-anchor="middle" class="t">GitHub Actions · ci-cd.yml</text>
+  <rect x="1370" y="316" width="280" height="44" rx="6" fill="#ecfdf5" stroke="#059669"/>
+  <text x="1510" y="335" text-anchor="middle" class="s">1 · Test API against PostgreSQL service</text>
+  <text x="1510" y="351" text-anchor="middle" class="xs">+ React unit tests</text>
+  <rect x="1370" y="372" width="280" height="44" rx="6" fill="#eff6ff" stroke="#2563eb"/>
+  <text x="1510" y="391" text-anchor="middle" class="s">2 · docker buildx build (2 images)</text>
+  <text x="1510" y="407" text-anchor="middle" class="xs">tags :&lt;git-sha&gt; and :latest</text>
+  <rect x="1370" y="428" width="280" height="44" rx="6" fill="#fef3c7" stroke="#d97706"/>
+  <text x="1510" y="447" text-anchor="middle" class="s">3 · OIDC → short-lived IAM role</text>
+  <text x="1510" y="463" text-anchor="middle" class="xs">no stored AWS keys · push to ECR</text>
+  <rect x="1370" y="484" width="280" height="56" rx="6" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="1510" y="503" text-anchor="middle" class="s">4 · Deploy: set tag in SSM, start</text>
+  <text x="1510" y="519" text-anchor="middle" class="s">ASG instance refresh (app, then web)</text>
+  <text x="1510" y="533" text-anchor="middle" class="xs">rolling, min healthy 100 %</text>
+  <rect x="1370" y="552" width="280" height="44" rx="6" fill="#f3e8ff" stroke="#7c3aed"/>
+  <text x="1510" y="571" text-anchor="middle" class="s">5 · Smoke test via public ALB</text>
+  <text x="1510" y="587" text-anchor="middle" class="xs">/healthz · /api/health · /api/health/ready</text>
+  <text x="1510" y="625" text-anchor="middle" class="xs">Pipeline secrets: AWS_ROLE_ARN, Supabase anon key</text>
+  <text x="1510" y="642" text-anchor="middle" class="xs">(GitHub encrypted secrets / variables)</text>
+  <text x="1510" y="664" text-anchor="middle" class="xs">Infra: terraform apply (infra/terraform)</text>
+  <line x1="1510" y1="248" x2="1510" y2="274" class="ln"/>
+  <text x="1520" y="266" class="xs">git push</text>
+
+  <!-- Developer -->
+  <rect x="1440" y="740" width="160" height="56" class="box"/>
+  <text x="1520" y="764" text-anchor="middle" class="t">Developer</text>
+  <text x="1520" y="782" text-anchor="middle" class="xs">git push / terraform apply</text>
+  <path d="M1520,740 L1520,712" class="ln"/>
+
+  <!-- External SaaS -->
+  <rect x="1330" y="830" width="360" height="110" fill="#f9fafb" stroke="#9ca3af" rx="10" stroke-dasharray="5 4"/>
+  <text x="1350" y="856" class="h">External services</text>
+  <text x="1350" y="880" class="s">Stripe API (test mode) – card checkout, called by the API</text>
+  <text x="1350" y="900" class="s">Supabase Storage – product images / seller documents,</text>
+  <text x="1350" y="918" class="s">uploaded directly from the browser</text>
+
+  <!-- ===== flows ===== -->
+  <path d="M180,445 L240,445 L240,188 L260,188" class="ln"/>
+  <text x="186" y="436" class="xs">HTTP(S)</text>
+  <path d="M347,208 L347,282" class="ln"/>
+  <path d="M540,338 L540,480" class="ln"/>
+  <path d="M920,338 L920,480" class="ln"/>
+  <text x="548" y="430" class="xs">:80</text>
+  <text x="928" y="430" class="xs">:80</text>
+  <path d="M540,550 L540,648" class="ln"/>
+  <path d="M920,550 L920,648" class="ln"/>
+  <text x="548" y="612" class="xs">/api → :80</text>
+  <text x="928" y="612" class="xs">/api → :80</text>
+  <path d="M540,700 L540,724" class="ln"/>
+  <path d="M920,700 L920,724" class="ln"/>
+  <path d="M540,798 L540,908" class="ln"/>
+  <path d="M920,798 C920,860 660,860 592,912" class="ln"/>
+  <text x="548" y="890" class="xs">:5432 TLS</text>
+  <path d="M590,968 L728,968" class="lg"/>
+  <text x="600" y="960" class="xs">sync replication</text>
+  <path d="M320,370 L262,370 L262,212" class="lg"/>
+  <path d="M1045,520 L1052,520 L1052,207 L1063,207" class="lg"/>
+  <path d="M1052,297 L1063,297" class="lg"/>
+  <path d="M1052,383 L1063,383" class="lg"/>
+  <path d="M1052,476 L1063,476" class="lg"/>
+  <text x="1065" y="152" class="xs" fill="#6b7280">used by instances via NAT:</text><text x="1065" y="165" class="xs" fill="#6b7280">pull image · secret · tag · logs</text>
+  <path d="M1368,450 L1310,450 L1310,207 L1282,207" class="lp"/>
+  <text x="1286" y="198" class="xs" fill="#7c3aed">push</text>
+  <path d="M1368,510 L1298,510 L1298,383 L1282,383" class="lp"/>
+  <text x="1284" y="425" class="xs" fill="#7c3aed">set tag</text>
+  <path d="M1368,530 L1316,530 L1316,770 L1002,770" class="lp"/>
+  <text x="1066" y="762" class="xs" fill="#7c3aed">instance refresh → both ASGs (rolling)</text>
+  <path d="M1002,820 L1032,820 L1032,1100 L1320,1100 L1320,885 L1328,885" class="lg"/>
+  <text x="1060" y="1094" class="xs">API → Stripe (via NAT)</text>
+  <path d="M110,500 L110,1172 L1702,1172 L1702,905 L1692,905" class="lg"/>
+  <text x="700" y="1192" class="xs">browser uploads images directly to Supabase Storage</text>
+</svg>
