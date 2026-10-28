@@ -32,11 +32,14 @@ data "aws_iam_policy_document" "github_assume" {
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
     }
-    # Only workflows running on the main branch of YOUR repository can deploy
+    # Only YOUR repository can deploy: main-branch jobs, or jobs in the "production" environment
     condition {
-      test     = "StringEquals"
+      test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repository}:ref:refs/heads/main"]
+      values = [
+        "repo:${var.github_repository}:ref:refs/heads/main",
+        "repo:${var.github_repository}:environment:production",
+      ]
     }
   }
 }
