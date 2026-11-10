@@ -93,7 +93,7 @@ const HomePage = () => {
                 className="text-5xl md:text-6xl font-bold text-gray-900 mt-6 mb-6 font-['Poppins']"
               >
                 {/* Shop from Talented  */}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-700 to-purple-500">Shop from Talented Pakistani Women  </span>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-700 to-purple-500">Shop from Talented Deprives SE Student  </span>
                 {/* Pakistani Women */}
               </motion.h1>
 
